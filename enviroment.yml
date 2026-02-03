@@ -1,0 +1,21 @@
+name: gravity-topography-regression
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - pandas
+  - xarray
+  - matplotlib
+  - ipykernel
+  - jupyterlab
+  - harmonica  
+  - verde      
+  - boule      
+  - choclo     
+  - numba      
+  - netcdf4   
+  - pooch      
+  - scikit-learn 
