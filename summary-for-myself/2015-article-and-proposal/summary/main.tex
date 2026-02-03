@@ -518,13 +518,397 @@ No caso específico da crosta oceânica do Atlântico, foi verificado que os par
 
 
 
+\section{Regressõ mais robusta}
+
+Queremos fazer uma 'regressão dupla', visando encontrar os coeficientes angulares de duas retas, pro oceano e continente ($a_o$ e $a_C$), tendo a equação base, sabendo da relação linear entre anomalia Bouguer e topografia:
+
+$$ \Delta g = a_{oceano}h_{oceano} + a_{continente}h_{continente} + b$$
+
+O objetivo da regressão é encontrar o vetor de parâmetros $p$
+
+$$\begin{bmatrix}
+a_o \ \\ 
+a_c \ \\ 
+b \
+\end{bmatrix}$$
+
+Para isso, transformaremos em um sistema de álgebra linear. Sendo $d$ o vetor de dados observados, os dados da anoamlia Bouguer.
+
+$$ d = Ap$$
+
+a equação acima é a relação base, sendo a matriz A um operador que relaciona a topografia (que está em suas linhas) com os parâmetros, resultando na anomalia Bouguer. Essa matriz, para sua construção, possui condição:
+
+$$h < 0: [h, 0, 1]$$
+$$h \geq 0: [0, h, 1] $$
+
+$$ \begin{bmatrix}
+a_{i_{0}} \ a_{i_{1}} \ 1 \\
+a_{j_{0}} \ a_{j_{1}} \ 1 \\
+a_{k_{0}} \ a_{k_{1}} \ 1 \\
+\end{bmatrix}$$
+
+
+Cada linha dessa matriz é um ponto de observação na superfície, gerando uma equação correspondente como resultado por ser multiplicada pelo vetor de parâmetros $p$, por exemplo, no ponto 1, a equação será $\Delta g_1 = A_{11} \cdot a_o + A_{12} \cdot a_c + A_{13} \cdot b$. Sabendo que uma dos valores nas linhas necessariamente será necessariamente $0$, pois teremos ou oceano ou continente para $h$, e sabendo  que o valor de $b$ será constante e igual a $1$, essa relação pode se simplificar para $\Delta g_1 = A_{11} \cdot a_o + 0 \cdot a_c + 1 \cdot b$ ou $\Delta g_1 = 0 \cdot a_o + A_{12} \cdot a_c + 1 \cdot b$. Isso se repete para todos pontos de observação, todas linhas, todas equações. Com o valor de $b = 1$ para todos, isso força as retas posteriores à regressão se encontrarem no mesmo ponto, sendo esse a altitude de $0m$.
+
+Para realizar a regressão, define-se o vetor de resíduos $r$, dado pela subtração dos dados de anomalia bouguer pelos dados do modelo previsto (ainda sem determinação de valores dos parâmetros)
+
+$$ r_i = d - (a_o \cdot A_{i1} + a_c \cdot A_{i2} + b \cdot 1)$$
+
+Agora, defino a função objetivo $J(a_o, a_c, b)$ que é a soma de todos resíduos ao quadrado de todos os $M$ pontos.
+
+$$ J(a_o, a_c, b) = \sum_{i=1}^{M} r_i^2 = \sum_{i=1}^{M} [d - (a_o \cdot A_{i1} + a_c \cdot A_{i2} + b \cdot 1)]² $$
+
+Ao obter $JJ(a_o, a_c, b)$, derivamos em relação ao vetor $p$ que contém os parâmetros que buscamos e igualamos à 0, para achar os mínimos dos resíduos. 
+
+ $$\frac{\partial J(p)}{\partial p} = 0  $$
+
+ O resultado dessa derivada, utilizando a regra da cadeia, derivando em relação à $a_o$ (a derivada é em relação aos três parâmetros) é 
+
+ $$ \frac{\partial J(p)}{\partial a_o} = \sum  2 \cdot [d_i - (A_{i1} a_o +  A_{i2} a_c + b)] \cdot (-A_{i1}) $$
+
+  $$ \frac{\partial J(p)}{\partial a_c} = \sum  2 \cdot [d_i - (A_{i1} a_o +  A_{i2} a_c + b)] \cdot (-A_{i2}) $$
+
+  Dessa forma, o último termo, o negativo, $(-A_{i1})$ para o caso de $a_o$, é cancelado quando estivermos em um ponto do continente, pois nesse caso $A_{i1} = 0$.
+
+  Dividindo a equação por $-2$ para simplificar, lembrando que fazer isso não muda o comportamento da equação pois ela está igualada À $0$, obtemos:
+
+  \begin{figure}[H]
+      \centering
+      \includegraphics[width=1\linewidth]{image.png}
+      \caption{Enter Caption}
+      \label{fig:placeholder}
+  \end{figure}
+
+O termo $\sum (A_{i1} \cdot d_i)$ é a soma da multiplicação de dois vetores. Em álgebra linear, a multiplicação da transposta de uma matriz vezes um vetor resulta na soma do produto entre esses dois vetores, ou seja:
+
+$$ \sum (A_{i1} \cdot d_i) = A^T d $$
+
+A matriz A não pode ser invertida pois não é quadrada. Além disso, não se pode 'dividir' ela, por ser retangular. 
+
+Podemos isolar o termo que foi transposto, rearranjando a figura 16. Fazendo a análise não somente para a derivada parcial resultante após igualar À $0$ de $a_o$, mas para os outros parâmetros $a_c$ e $b$, chegamos em três equações:
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image1.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+
+Com essas relações, conseguimos perceber que a primeira linha de $A^T d$ é a primeira somatória, a segunda linha de $A^T d$ é o segundo somatório, e a terceira linha de $A^T d$ é o terceiro somatório.
+
+
+O objetivo aqui é minimizar os resíduos, sabendo que os resíduos possuem a equação $ r = d - Ap$.  Pelo princípio da ortogonaidade, o vetor de resíduos $r$ deve ser ortogonal à matriz $A$, para o produto escalar entre eles ser $0$ e assim minimizar ao máximo o erro. No entando, a matriz $A$ é $M \times 3$ e o vetor $r$ é $M \times 1$. Pela regra de multiplicação de matrizes, o número de colunas de uma matriz deve ser igual ao número de linhas da outra, o que não é o caso; no entanto, ao fazer $A^T$, a transposta, obtemos $A^T$ com $3 \times M$ e $r$ com $M \times 1$, agora sendo possível a operação de produto matricial, onde a estrutura da matriz/vetor final será dado pelos valores 'de fora', resultando em uma matriz $ 3 \times 1$. Vale ressaltar que poderíamos fazer a transposta de $r$ também, mas o resultado seria um vetor horizontal ($1 \times 3$), e é preferível o vetor resultante ser vertical ($3 \times 1$). 
+
+
+Agora, sabendo que $A^T \cdot r = 0$, podemos substituir a equação de $r$, obtendo
+
+$$A^T \cdot (d - Ap) = 0 \implies A^T d - A^T Ap = 0 \implies A^Td = A^TAp$$
+
+A relação acima implica num sistema de equações normais (normal se refere a ortogonalidade, perpendicularismo, devido à origem desse sistema  a partir do produto escalar igual a $0$, fazendo os vetores serem perpendiculares). Inicialmente, podemos notar a operação $A^TA$, que implica numa matriz quadrada, no caso sendo $A^T$ uma matriz $3 \times M$ e $A$ sendo $M \times 3$, resultando assim numa matriz $3 \times 3$, que é quadrada e inversível. 
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image2.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+
+A imagem acima pe um exemplo de como podem ficar as matrizes, lembrando que se estivermos num ponto do continente, o $h_o$ será $0$, e que sempre uma dos valores de altura será $0$ (por isso tem valores $0$ na imagem, que se referem, no caso, ao ponto situado no oceano, que zera o do continente). Essa multiplicação gera uma matriz $3 \times 3$, conforme já comentado, e sua construção, cada elemento seu, é construído conforme explicado nas imagens abaixo, seguindo a lógica da multiplicação de matrizes.
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image3.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+ 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image4.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image5.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+A matriz final resultante dessa operação entre $A^TA$, é a seguinte matriz
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image6.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+Vale reparar na presença dos zeros nas primeira e segunda linha, indicando a condição imposta e possibilitando a eventual determinação dos coeficientes angulares. Ess aoperação corresponde ao lado esquerdo da equação.
+
+
+No lado direito, temos $A^T d$. A imagem abaixo é uma ilustração das matrizes e a operação entre elas.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image7.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+Sendo $A^T$ uma matriz $3 \times M$ e $d$ uma matriz $M \times 1$, podemos fazer uma multiplicação, resultando numa matriz $ 3 \times 1$. O passo a passo para montagem do resultando, a cnstrução de cada elemento, está na imagem abaixo.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image8.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+A matriz resultante dessa multiplicação é 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image9.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+Que representa o lado direito da equação. Agora, lidando também com os parâmetros, nossa equação de sistema fica desse modo:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image10.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+---------------------------------------------------------------------------------
+\vspace{1cm}
+
+Agora entendendo o comportamrnto das transpostas e das multiplicações matriciais, e tmbém analisando o resultado das multiplicações matriciais podemos rearranjar uma relação já vista, isolando os parÂmetros dos sistemas de equações normais, para achar seus valores:
+
+$$ p = (A^TA)^{-1} A^T d $$
+
+Foi possível fazer isso pois há inversa para $A^TA$. Já sabemos o resultado de $A^TA$ e $A^Td$. A imagem abaixo ilustra, matricialmente, o isolamento dos parâmetros $p$.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image11.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+
+O passo a passo para resolução está nas imagens abaixo
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image12.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image13.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image14.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image15.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+E dessa forma é feita a regressão que gera dois coeficientes diferentes.
+
+\subsubsection{Regressão robusta com matriz $W$ de pesos}
+
+A fim de colocar peso na regressão, que significa que um ponto muito distante e destoante terá menos interferência no resultado, introduzimos a matriz $W$ de pesos. Ela é uma matriz diagonal, com valores $w_{i,i}$ em suas diagonais, e o resto de zeros. Ela é construída dessa forma:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image16.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+Essa matriz é quadrada, sendo $M \times M$.  Para sua construção, parte-se do princípio que cada valor do vetor $d$ de anomalia Bouguer é uma medida independente de outro ponto. A presença dos zeros isola ess eponto; se houvesse valores diferentes de zero, significaria que outros pontos tem influÊncia sobre o ponto em que estou medindo no momento. O peso aplicado, a forma que el eé aplicado, é ilustrado na figura abaixo
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image17.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+Se não fossem os zeros, o peso em $d_1$ não seria influenciado por seu próprio valor de peso $w_1$. 
+
+Agora, introduziremos os pesos à regressão. Cada valor de peso $w_{i,i}$ será
+
+$$w_{i,i} = \frac{1}{|r_i^2|}$$
+
+A matriz $W$ será introduzida com os dados de anomalia $d$ e com os dados de topografia presentes na matriz $A$. Agora, a equação de sistema normal fica
+
+$$ (A^T W A)p = A^T Wd $$
+
+A matriz resultante no lado esquerdo, na parte que multiplica os parâmetros, é:
+
+
+
+$$A^T W A = \begin{bmatrix}
+\sum w_i h_{oc,i}^2 & 0 & \sum w_i h_{oc,i} \\
+0 & \sum w_i h_{ct,i}^2 & \sum w_i h_{ct,i} \\
+\sum w_i h_{oc,i} & \sum w_i h_{ct,i} & \sum w_i 
+\end{bmatrix}$$
+
+Podendo notar a presença dos pesos $w_i$ nos termos, e que antes $[3,3]$ era $1$ (peso igual para todos os pontos) e agora esse termo é a soma de todos os pesos. 
+
+
+Agora, para o lado direito, a matriz resultante:
+
+$$A^T W d =
+\begin{bmatrix}
+\sum w_i h_{oc,i} d_i \\
+\sum w_i h_{ct,i} d_i \\
+\ \sum w_i d_i 
+\end{bmatrix}$$
+
+onde também observmos apenas a adição do termo $w_i$ como forma de peso. Assim, seguindo os passos do passo sem peso, podemos usar a mesma lógica matemática para chegar nas equações para os coeficientes, agora com pesos, primeiro isolando o vetor de parâmetros $p$, e depois fazend os processos já explicados (para inversão de matrizes, multiplicação e etc) e chegar na equação dos coeficientes:
+
+$$ p = (A^TWA)^{-1} A^T W d $$
+
+Assim, chegamos nas equações para os coeficientes
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image18.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+Observamos também, coparado a regressão sem robustez, a adição do termo $w_i$ para os coeficientes angulares, e alteração pro coeficiente linear $b$. 
+
+
+
+\section{Código: Regressão}
+
+\subsection{Regressão sem pesos}
+
+
+Meus dados vieram inicialmente um formato 2D de grade. Ou seja, minhas informações estão guardadas em uma matriz, com linhas sendo latitude e colunas sendo longitude; uma posição correspondente dessa matriz, uma posição com latitude x e longitude y, possui uma determinada topografia, parecido dom um mapa em si. A função 'ravel' do python transforma o 2D em 1D, ou seja, agora tenho um vetor de latitude e um vetor de longitude, separadamente, e um vetor de topografia, por exmeplo.
+
+Muitas vezes, é necessário usar .ravel() do python para fazer a conversão de 2D para 1D, pois modelos de regressão costumam usar 1D em suas operações. Mesmo utilizando matrizes nas operações, construirei essas matrizes como colunas de vetores um ao lado do outro. 
+
+Ou seja, fazendo data.topography.values.ravel(), pego um vetor com os valores de topografia que antes estavam na grade 2D. Se eu quiser um vetor de latitude, longitude ou o que for, o processo é semelhante. 
+
+É importante ressaltar que o problema é com ammatriz 2D de mapa. A matriz 2D de variáveis não pe um problema, e é a que usamos na programação. 
+
+Dessa forma, ao usar o ravel pra criar os vetores de inetresse (h oceano, h continente e intercepto), utilizo np.column stack para transformar isso numa matriz 2D de variável, compatível com a programação, e não em formato de mapa.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image20.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+Para fazer operações de álgebra linear, pode-se usar o numpy. A função .T faz a transposta de uma matriz que você construiu com column stack; o @ faz produto matricial. Para resolver o sistema, basta usar np.linalg.solve, que resolve o sistema criado. A imagem abaixo mostra como foi feito esse processo. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image19.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+para resolver o sistema e determinar os parÂmetros $p$, considera-se $p$ do lado esquerdo da equação, ao lado do $A^TA$, por isso que essa muktiplicação matricial vem primeiro no argumento, para resolver o sistema $A^TAp = A^Td$. Por fim, defino as variáveis de parâmetro na ordem dos h's: oceano, continente e intercepto. 
+
+
+POr fim, para ajustar a reta, basta relembrar-se que $Ap = d_{previsto}$. Isso quer dizer que minha matriz A, que contém as alturas de continente ou oceano e o termo de intercepto (sempre $1$), com formato $ M \times 3$, quando multiplicado pelo meu vetor de parâmetros (coeficientes obtidos a partir da solução do sistema linear) com formato $ 3 \times 1 $, tem multiplicação compatível e resulta em um vetor de formato $ M \times 1$, que é meu vetor de dados preditos. Esse vetor tem mesmo tamanho e formato que meu vetor de dados originais, no caso o vetor de anomalia Bouguer, mas meu vetor de dados preditos são os pontos que vão fazer a reta da minha regressão linear, pontos esses preditos pelo modelo $Ap = d_{previsto}$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image21.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+Então, basta plotar o gráfico e fazê-lo mostrar os coeficientes. Se atentar ao plotar a reta; quan for oceano, colocar a máscara (restrição) de plotar tanto os dados de topofrafia (h) quando os dados previstos ($d_predicted$ correspondentes à oceano ou continente (ou seja, para essas duas variáveis, colocar a resrição de $h>0$ ou $h<0$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image22.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+
+
+Na hora do plot, estou prevendo o valor de $d$; dessa forma, ao fazer o plot, o parâmetro $x = h$, a topografia, continua a mesma, mas o parÂmetro $y = d$ agora será o predito, pois a regressão se baseia na previsão desse parâmetro. 
 
 
 
 
 
+\subsection{Regressão com pesos}
+
+Com os pesos, precisamos definir o resíduo no código, pois os resíduos serão critério para os pesos, confome explicado na parte teórica. Como nesse caso utilizarei o mesmo notebook jupyter que já fiz a regressão sem robustez, posso definir o resíduo como $d - d_{predicted}$, e se utilizar dele para fazer a regressão robusta. 
+
+Em teoria, a matriz $W$ de pesos é diagonal. No entanto, não preciso criar ela inteira no python (ela é muito grande, ocupa muita memória), e como ela é composta de zeros fora da diagonal, eu posso simplesmente multiplicar o elemento não-nulo da linha de W pela linha de A, como ilustrado na imagem abaixo. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image23.png}
+    \caption{Nessa imagem, a matriz diagonal W foi multiplicada por uma matriz A, e o reusltado foi o mesmo que se eu pegasse um elemento não nulo de W e multiplicasse por uma linha de A.}
+    \label{fig:placeholder}
+\end{figure}
+
+No código, primeiro eu defino o vetor de pesos. Como ele é em função de residuos, também um vetorm  o python ja entende pesos também como vetor. 
+
+Para adicionar os pesos à matriz A, não uso o @ da multiplicação matricial pois apenas quero multiplicar o valor da linha 1 dos pesos pela linha 1 de A, é uma multiplicação por escalar. Uso @ quando multiplicar matrizes, e só vai funcionar com rgegra de multiplicação de matrizes (número de colunas = número de linhas). 
+
+QUando multiplicar uma matriz por um vetor, de forma escalar, apenas ponderando pesos, eles devem te ro memso numero de linhas, pois quero multiplicar umm peso corresponde a toda linha da matriz. Pra isso eu transformo a matriz em vetor coluna.  
+
+Os pesos são aplicados na topografia e na anomalia observada, os dados principais do nosso modelo. Ou seja, eu pondero meus atributos, e faço as contas novamente. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image24.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
 
 
+
+Na hora do plot, estou prevendo o valor de $d$; dessa forma, ao fazer o plot, o parâmetro $x = h$, a topografia, continua a mesma, mas o parâmetro $y = d$ agora será o predito, pois a regressão se baseia na previsão desse parâmetro. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image25.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
 
 
 \end{document}
