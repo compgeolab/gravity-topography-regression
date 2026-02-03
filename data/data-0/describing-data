@@ -1,0 +1,18 @@
+# DESCRIPTION! DATA COLLECTED FROM https://icgem.gfz.de/calcgrid
+
+longtime
+goco06s
+gravity_ell
+grid step 1
+global
+10000m
+wgs 84
+half response 290 310 
+
+topography
+topography_grd
+the rest just like gravity
+
+
+
+
