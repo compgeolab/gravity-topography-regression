@@ -7,15 +7,16 @@ dependencies:
   - numpy
   - scipy
   - pandas
-  - xarray
   - matplotlib
-  - ipykernel
+  - scikit-learn
+  - xarray
+  - netcdf4
+  - pygmt
+  - verde
+  - harmonica
+  - boule
+  - bordado
+  - geopandas
   - jupyterlab
-  - harmonica  
-  - verde      
-  - boule      
-  - choclo     
-  - numba      
-  - netcdf4   
-  - pooch      
-  - scikit-learn 
+  - ipykernel
+  - pooch
