@@ -103,13 +103,13 @@ def windows_regression(data, h, d, lon, lat, window_size=3.0, overlap=0.5):
         n_cont = np.sum(h_window >= 0)
 
         resultados.append({
-            'original-idx': i,
             'longitude': window_coordinates[0][i],
             'latitude': window_coordinates[1][i],
             'a_o': p_window[0],
             'a_c': p_window[1],
             'b': p_window[2],
             'r2' : p_window[3],
+            'original-idx': i,
             'total_points': len(h_window),
             'ocean_points': n_ocean,
             'continent_points': n_cont
@@ -122,55 +122,51 @@ def windows_regression(data, h, d, lon, lat, window_size=3.0, overlap=0.5):
 
 
 def plot_window_regression(i_wished_window, h_window, d_window, a_ocean_window, a_continent_window, intercept_window, r2_window):
-    h_limit = np.abs(h_window).max()
-
     plt.figure(figsize=(10,6))
-    ax = plt.gca() # necessário para posicionar a caixa de texto
-    plt.xlim(-h_limit, h_limit)
+    ax = plt.gca()
 
-    plt.scatter(h_window, d_window, color='black', alpha=0.2, s=20)
+    h_min, h_max = h_window.min(), h_window.max()
+    plt.xlim(h_min, h_max)
 
-    # plot para oceano, caso a_o exista
-    if not np.isnan(a_ocean_window):
-        if np.any(h_window < 0): # se retornar True é porque ao menos 1 ponto corresponde a condição
-            h_ocean = np.sort(np.append(h_window[h_window < 0], 0)) # para retas se encontrarem em 0, adiciono 0 a h_ocean, e organizo pro plot não bugar
-            d_pred_ocean = a_ocean_window * h_ocean + intercept_window # cálculo: d = a_o * h + b, d = Ap
-            plt.plot(h_ocean, d_pred_ocean, color='blue', lw=2.5, 
-                     label=f'Ocean: {a_ocean_window:.5f} mGal/m')
+    plt.scatter(h_window, d_window, color='black', alpha=0.2, s=20, label='Data')
 
-    # plot_continente
-    if not np.isnan(a_continent_window):
-        if np.any(h_window >= 0):
-            h_continent = np.sort(np.append(h_window[h_window >= 0], 0))
-            d_pred_continent = a_continent_window * h_continent + intercept_window # cálculo: d = a_o * h + b, d = Ap
-            plt.plot(h_continent, d_pred_continent, color='red', lw=2.5, 
-                     label=f'Continent: {a_continent_window:.5f} mGal/m')
+    has_ocean = not np.isnan(a_ocean_window) and np.any(h_window < 0)
+    has_continent = not np.isnan(a_continent_window) and np.any(h_window >= 0)
 
-    plt.title(f'{i_wished_window}th window: Robust Regression')
-    plt.xlabel('Topography (m)')
-    plt.ylabel('Bouguer anomaly (mGal)')
-    plt.axvline(0, color='gray', linestyle='--', alpha=0.5) # linha no nível do mar 
+    if has_ocean:
+        h_ocean_points = h_window[h_window < 0]
+        h_plot = np.sort(h_ocean_points) 
+        d_pred = a_ocean_window * h_plot + intercept_window
+        plt.plot(h_plot, d_pred, color='blue', lw=2.5, 
+                 label=f'Ocean: {a_ocean_window:.5f} mGal/m')
 
-    legenda = plt.legend(loc='upper right')
+    if has_continent:
+        h_cont_points = h_window[h_window >= 0]
+        h_plot = np.sort(h_cont_points)
+        d_pred = a_continent_window * h_plot + intercept_window
+        plt.plot(h_plot, d_pred, color='red', lw=2.5, 
+                 label=f'Continent: {a_continent_window:.5f} mGal/m')
 
-    # criação da caixinha para o intercepto b abaixo da legenda
-    text_b = f'Intercept (b): {intercept_window:.5f} mGal'
-    plt.text(0.98, 0.85, text_b, transform=ax.transAxes, 
+    if h_min <= 0 <= h_max:
+        plt.axvline(0, color='gray', linestyle='--', alpha=0.5)
+
+    plt.title(f'Janela {i_wished_window}: Regressão Robusta (Fidelidade Total)')
+    plt.xlabel('Topography Real (m)')
+    plt.ylabel('Anomalia de Bouguer (mGal)')
+    
+    plt.legend(loc='upper right')
+
+    text_stats = f'Intercept (b): {intercept_window:.4f} mGal\nR²: {r2_window:.4f}'
+    plt.text(0.98, 0.81, text_stats, transform=ax.transAxes, 
              horizontalalignment='right', verticalalignment='top',
-             bbox=dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor='lightgray', alpha=0.8))
+             bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.8, edgecolor='lightgray'))
 
-    text_r2 = f'R²: {r2_window:.5f}'
-    plt.text(0.98, 0.79, text_r2, transform=ax.transAxes, 
-             horizontalalignment='right', verticalalignment='top',
-             bbox=dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor='lightgray', alpha=0.8))
-
-    plt.grid(True, alpha=0.3)
+    plt.grid(True, alpha=0.2, linestyle=':')
     plt.show()
 
 
-import pygmt
 
-def plot_parameters_map(data, parameter, v_range=[-0.2, 0.2], step=0.01, cmap='polar', reverse=True):
+def plot_parameters_map(data, parameter, v_range, step, cmap, reverse=True):
     
     # 1. Limpeza e definição da região
     # Remove NaNs da coluna específica para não dar erro no plot
