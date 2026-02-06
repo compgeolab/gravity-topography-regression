@@ -1,0 +1,19 @@
+https://icgem.gfz.de/calcgrid
+
+longtime model 
+eigen 6c4
+gravity_ell
+grid step 0.2
+height over 10000m
+lon -56.4546, 22.518, lat 11.52 -56.129
+wgs 84
+half response
+384, 404
+xyz
+
+topography
+topography_grd
+just like gravity
+
+geoid
+just like others
