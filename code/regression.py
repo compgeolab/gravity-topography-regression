@@ -150,9 +150,9 @@ def plot_window_regression(i_wished_window, h_window, d_window, a_ocean_window, 
     if h_min <= 0 <= h_max:
         plt.axvline(0, color='gray', linestyle='--', alpha=0.5)
 
-    plt.title(f'Janela {i_wished_window}: Regressão Robusta (Fidelidade Total)')
-    plt.xlabel('Topography Real (m)')
-    plt.ylabel('Anomalia de Bouguer (mGal)')
+    plt.title(f' {i_wished_window}th window: Robust Regression')
+    plt.xlabel('Topography (m)')
+    plt.ylabel('Bouguer anomaly (mGal)')
     
     plt.legend(loc='upper right')
 
