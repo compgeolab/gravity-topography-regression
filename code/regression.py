@@ -11,15 +11,22 @@ import bordado as bd
 import verde as vd
 import pandas as pd
 
-def robust_regression(h,d):
-    if len(h) < 5:
-        return np.nan, np.nan, np.nan
+def robust_regression(h, d, min_points, trava=True):
+    if len(h) < min_points:
+        return np.nan, np.nan, np.nan, np.nan
 
-    # entra pra lista qualquer um que cumprir o critério
-    has_ocean = np.any(h < 0)
-    has_continent = np.any( h >= 0)
+    # trava de segurança: exige pelo menos 5 pontos para considerar a categoria estatisticamente válida
+    n_ocean = np.sum(h < 0) # retorna True para quem corresponde
+    n_continent = np.sum(h >= 0)
+    
+    if trava:
+        has_ocean = n_ocean >= 4
+        has_continent = n_continent >= 4
+    else:
+        has_ocean = n_ocean > 0
+        has_continent = n_continent > 0
 
-    if has_ocean and has_continent: # se 'any' retornar True pra tudo em ambos os casos
+    if has_ocean and has_continent: # se retornar True pra tudo em ambos os casos
         # criando matriz A, com os três parÂmetros
         h_ocean = np.where(h < 0, h, 0)
         h_continent = np.where(h >= 0, h, 0)
@@ -27,23 +34,22 @@ def robust_regression(h,d):
         A = np.column_stack((h_ocean, h_continent, intercept))
         case = 'mixed'
 
-    elif has_ocean: # se 'any' retornar False para has_continent
+    elif has_ocean: # se retornar False para has_continent
         h_ocean = np.where(h < 0, h, 0)
         intercept = np.ones(len(h))
         A = np.column_stack((h_ocean, intercept))
         case = 'ocean'
 
-    elif has_continent: # se'any' retornar False para has_ocean
-        h_continent = np.where( h >= 0, h, 0) 
+    elif has_continent: # se retornar False para has_ocean
+        h_continent = np.where(h >= 0, h, 0) 
         intercept = np.ones(len(h))
         A = np.column_stack((h_continent, intercept))
         case = 'continent'
 
     else:
-        return np.nan, np.nan, np.nan
+        return np.nan, np.nan, np.nan, np.nan
 
     try:
-    
         # resolvendo o sistema Ap = d, rodando regressão sem robustez
         p_non_robust = np.linalg.lstsq(A, d, rcond=None)[0] # [0] gets only the parameters
         residuals = d - (A @ p_non_robust) # dados observados - dados preditos 
@@ -65,7 +71,6 @@ def robust_regression(h,d):
         s_mean = np.sum((d - np.mean(d))**2) 
         r2 = 1 - (s_residuals / s_mean) if s_mean != 0 else np.nan
 
-
         if case == 'mixed':
             return p_robust[0], p_robust[1], p_robust[2], r2
 
@@ -74,16 +79,17 @@ def robust_regression(h,d):
 
         if case == 'continent':
             return np.nan, p_robust[0], p_robust[1], r2 # a matriz nesse caso só tem duas colunas
-        
 
-    except np.linalg.LinAlgError:
-        return np.nan, np.nan, np.nan
+    except:
+        return np.nan, np.nan, np.nan, np.nan
+
+    return np.nan, np.nan, np.nan, np.nan
 
 
-def windows_regression(data, h, d, lon, lat, window_size=3.0, overlap=0.5):
+def windows_regression(data, h, d, lon, lat, window_size, overlap, min_points, trava=True):
     
     window_coordinates, indices = bd.rolling_window_spherical(
-        coordinates=(lon, lat), window_size=window_size, overlap=overlap
+        coordinates=(lon, lat), window_size = window_size, overlap = overlap
     )
 
     resultados = []
@@ -97,9 +103,13 @@ def windows_regression(data, h, d, lon, lat, window_size=3.0, overlap=0.5):
             empty_windows += 1
             continue
 
-        p_window = robust_regression(h_window, d_window)
+        p_window = robust_regression(h_window, d_window, min_points, trava=trava)
         
-        n_ocean = np.sum(h_window < 0) # como > retorna True ou False, a soma vai ser o número de 'Trues' em vez da soma dos elementos
+        # Se a regressão retornou None ou menos dados que o esperado, ignoramos a janela
+        if p_window is None or len(p_window) < 4:
+            continue 
+
+        n_ocean = np.sum(h_window < 0)
         n_cont = np.sum(h_window >= 0)
 
         resultados.append({
@@ -108,7 +118,7 @@ def windows_regression(data, h, d, lon, lat, window_size=3.0, overlap=0.5):
             'a_o': p_window[0],
             'a_c': p_window[1],
             'b': p_window[2],
-            'r2' : p_window[3],
+            'r2' : p_window[3], # Agora garantido que existe
             'original-idx': i,
             'total_points': len(h_window),
             'ocean_points': n_ocean,
@@ -118,7 +128,6 @@ def windows_regression(data, h, d, lon, lat, window_size=3.0, overlap=0.5):
     print(f" {empty_windows} janelas foram ignoradas por falta de dados.")
     
     return pd.DataFrame(resultados), indices
-
 
 
 def plot_window_regression(i_wished_window, h_window, d_window, a_ocean_window, a_continent_window, intercept_window, r2_window):
@@ -165,22 +174,23 @@ def plot_window_regression(i_wished_window, h_window, d_window, a_ocean_window, 
     plt.show()
 
 
-
-def plot_parameters_map(data, parameter, v_range, step, cmap, reverse=True):
-    
-    # 1. Limpeza e definição da região
-    # Remove NaNs da coluna específica para não dar erro no plot
+'''
+def plot_parameters_map(data, parameter, v_range, step, cmap, reverse, projection):
+    # 1. Limpeza e verificação de dados existentes
     df_plot = data.dropna(subset=[parameter])
     
-    region = [
-        df_plot.longitude.min(), df_plot.longitude.max(),
-        df_plot.latitude.min(), df_plot.latitude.max()
-    ]
+    if df_plot.empty:
+        print(f"AVISO: A coluna '{parameter}' está vazia. Verifique a regressão.")
+        return None
+
+    # 2. Definição da Região
+    # Como o CRUST1.0 é um modelo global, o mais seguro é usar o atalho "d" 
+    # Isso define automaticamente o limite [-180, 180, -90, 90] sem erros de float
+    region = "d" 
     
     fig = pygmt.Figure()
 
-    # 2. Configuração da escala de cores (CPT)
-    # Adicionamos reverse=reverse para controlar a polaridade (ex: Vermelho para oceano/positivo)
+    # 3. Configuração da escala de cores (CPT)
     pygmt.makecpt(
         cmap=cmap, 
         series=[v_range[0], v_range[1], step], 
@@ -189,26 +199,79 @@ def plot_parameters_map(data, parameter, v_range, step, cmap, reverse=True):
         reverse=reverse
     )
 
-    # 3. Base do mapa (Projeção Equidistante Q)
+    # 4. Base do mapa (Projeção Mollweide centralizada no Brasil/Atlântico)
     fig.basemap(
         region=region, 
-        projection='Q15c', 
-        frame=["af", f"WSne+t'Mapa de {parameter}'"]
+        projection=f'{projection}/15c', # Centralizado em -45 para ver a margem brasileira
+        frame=["af", f"+t'Mapa de {parameter}'"]
     )
 
-    # 4. Elementos geográficos e dados
-    fig.coast(land='lightgray', water='white', shorelines='0.5p,black')
+    # 5. Elementos geográficos
 
+    # 6. Plotagem dos pontos (Ajuste do tamanho 's')
+    # Usamos quadrados de 0.25c para preencher bem a grade de 1 grau
     fig.plot(
         x=df_plot.longitude,
         y=df_plot.latitude, 
         fill=df_plot[parameter], 
         cmap=True,
-        style='s0.25c', # Quadrados de 0.25cm
+        style='s0.25c', 
         pen='0.1p,black'
     )
 
-    # 5. Barra de cores
+    #fig.coast(shorelines='0.5p,black')
+
+
     fig.colorbar(frame=f'af+l"Valor de {parameter}"')
+    
+    return fig
+'''
+
+def plot_parameters_map(data, parameter, v_range, step, cmap, reverse, projection):
+    # 1. Limpeza
+    df_plot = data.dropna(subset=[parameter])
+    
+    if df_plot.empty:
+        print(f"AVISO: A coluna '{parameter}' está vazia.")
+        return None
+
+    # 2. Definição da Região AUTOMÁTICA (Para dar o zoom na sua área)
+    # Pegamos os limites dos dados e adicionamos uma pequena margem de 1 grau
+    region = [
+        df_plot.longitude.min() - 1, df_plot.longitude.max() + 1,
+        df_plot.latitude.min() - 1, df_plot.latitude.max() + 1
+    ]
+    
+    fig = pygmt.Figure()
+
+    # 3. Escala de cores
+    pygmt.makecpt(
+        cmap=cmap, 
+        series=[v_range[0], v_range[1], step], 
+        continuous=True, 
+        reverse=reverse
+    )
+
+    # 4. Base do mapa com Zoom (15c de largura)
+    fig.basemap(
+        region=region, 
+        projection=f"{projection}15c", 
+        frame=["af", f"+t'Mapa de {parameter}'"]
+    )
+
+    # 5. Elementos geográficos (Essencial para se localizar no zoom)
+    fig.coast(shorelines='0.5p,black', borders='1/0.2p,gray')
+
+    # 6. Plotagem dos pontos (Quadrados preenchendo a grade)
+    fig.plot(
+        x=df_plot.longitude,
+        y=df_plot.latitude, 
+        fill=df_plot[parameter], 
+        cmap=True,
+        style='s0.25c', # Tamanho do quadrado ajustado para o zoom
+        pen='0.1p'
+    )
+
+    fig.colorbar(frame=f'af+l"{parameter}"')
     
     return fig
