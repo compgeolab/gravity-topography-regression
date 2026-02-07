@@ -105,7 +105,7 @@ def windows_regression(data, h, d, lon, lat, window_size, overlap, min_points, t
 
         p_window = robust_regression(h_window, d_window, min_points, trava=trava)
         
-        # Se a regressão retornou None ou menos dados que o esperado, ignoramos a janela
+        # se a regressão retornou None ou menos dados que o esperado, ignoramos a janela
         if p_window is None or len(p_window) < 4:
             continue 
 
@@ -118,7 +118,7 @@ def windows_regression(data, h, d, lon, lat, window_size, overlap, min_points, t
             'a_o': p_window[0],
             'a_c': p_window[1],
             'b': p_window[2],
-            'r2' : p_window[3], # Agora garantido que existe
+            'r2' : p_window[3], 
             'original-idx': i,
             'total_points': len(h_window),
             'ocean_points': n_ocean,
@@ -174,77 +174,25 @@ def plot_window_regression(i_wished_window, h_window, d_window, a_ocean_window, 
     plt.show()
 
 
-'''
-def plot_parameters_map(data, parameter, v_range, step, cmap, reverse, projection):
-    # 1. Limpeza e verificação de dados existentes
-    df_plot = data.dropna(subset=[parameter])
-    
-    if df_plot.empty:
-        print(f"AVISO: A coluna '{parameter}' está vazia. Verifique a regressão.")
-        return None
 
-    # 2. Definição da Região
-    # Como o CRUST1.0 é um modelo global, o mais seguro é usar o atalho "d" 
-    # Isso define automaticamente o limite [-180, 180, -90, 90] sem erros de float
-    region = "d" 
-    
-    fig = pygmt.Figure()
+def plot_parameters_map(data, parameter, v_range, step, cmap, reverse, projection, title_add = '', ref_data = None, plot_coast = True):
 
-    # 3. Configuração da escala de cores (CPT)
-    pygmt.makecpt(
-        cmap=cmap, 
-        series=[v_range[0], v_range[1], step], 
-        continuous=True, 
-        background=True,
-        reverse=reverse
-    )
-
-    # 4. Base do mapa (Projeção Mollweide centralizada no Brasil/Atlântico)
-    fig.basemap(
-        region=region, 
-        projection=f'{projection}/15c', # Centralizado em -45 para ver a margem brasileira
-        frame=["af", f"+t'Mapa de {parameter}'"]
-    )
-
-    # 5. Elementos geográficos
-
-    # 6. Plotagem dos pontos (Ajuste do tamanho 's')
-    # Usamos quadrados de 0.25c para preencher bem a grade de 1 grau
-    fig.plot(
-        x=df_plot.longitude,
-        y=df_plot.latitude, 
-        fill=df_plot[parameter], 
-        cmap=True,
-        style='s0.25c', 
-        pen='0.1p,black'
-    )
-
-    #fig.coast(shorelines='0.5p,black')
-
-
-    fig.colorbar(frame=f'af+l"Valor de {parameter}"')
-    
-    return fig
-'''
-
-def plot_parameters_map(data, parameter, v_range, step, cmap, reverse, projection):
-    # 1. Limpeza
     df_plot = data.dropna(subset=[parameter])
     
     if df_plot.empty:
         print(f"AVISO: A coluna '{parameter}' está vazia.")
         return None
 
-    # 2. Definição da Região AUTOMÁTICA (Para dar o zoom na sua área)
-    # Pegamos os limites dos dados e adicionamos uma pequena margem de 1 grau
+    # pego a região original pra manter escala no plot
+    source = ref_data if ref_data is not None else df_plot
+    
     region = [
-        df_plot.longitude.min() - 1, df_plot.longitude.max() + 1,
-        df_plot.latitude.min() - 1, df_plot.latitude.max() + 1
+        source.longitude.min() - 1, source.longitude.max() + 1,
+        source.latitude.min() - 1, source.latitude.max() + 1
     ]
     
     fig = pygmt.Figure()
 
-    # 3. Escala de cores
     pygmt.makecpt(
         cmap=cmap, 
         series=[v_range[0], v_range[1], step], 
@@ -252,23 +200,22 @@ def plot_parameters_map(data, parameter, v_range, step, cmap, reverse, projectio
         reverse=reverse
     )
 
-    # 4. Base do mapa com Zoom (15c de largura)
     fig.basemap(
         region=region, 
         projection=f"{projection}15c", 
-        frame=["af", f"+t'Mapa de {parameter}'"]
+        frame=["af", f"+t'Mapa de {parameter} {title_add}'"]
     )
 
-    # 5. Elementos geográficos (Essencial para se localizar no zoom)
-    fig.coast(shorelines='0.5p,black', borders='1/0.2p,gray')
+    fig_coast = plot_coast
+    if plot_coast == True:
+        fig.coast(shorelines='0.5p,black', borders='1/0.2p,gray')
 
-    # 6. Plotagem dos pontos (Quadrados preenchendo a grade)
     fig.plot(
         x=df_plot.longitude,
         y=df_plot.latitude, 
         fill=df_plot[parameter], 
         cmap=True,
-        style='s0.25c', # Tamanho do quadrado ajustado para o zoom
+        style='s0.25c', # square 
         pen='0.1p'
     )
 
